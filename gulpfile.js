@@ -1,3 +1,5 @@
+var zip = require('gulp-zip');
+var rimraf = require('rimraf');
 var gulp = require('gulp');
 var path = require('path');
 var path = require('path');
@@ -10,6 +12,10 @@ var watch = require('gulp-watch');
 var pkg = require('./package.json');
 
 var kibanaPluginDir = path.resolve(__dirname, '../kibana/installedPlugins/heatmap');
+
+var buildDir = path.resolve(__dirname, 'build');
+var targetDir = path.resolve(__dirname, 'target');
+var buildTarget = path.resolve(buildDir, pkg.name);
 
 var include = ['package.json', 'index.js', 'public', 'node_modules'];
 var exclude = Object.keys(pkg.devDependencies).map(function (name) {
@@ -72,4 +78,25 @@ gulp.task('dev', ['sync'], function (done) {
   watch(['package.json', 'index.js', 'public/**/*', 'server/**/*'], batch(function(events, done) {
     gulp.start(['sync', 'lint'], done);
   }));
+});
+
+gulp.task('clean', function (done) {
+  Promise.each([buildDir, targetDir], function (dir) {
+    return new Promise(function (resolve, reject) {
+      rimraf(dir, function (err) {
+        if (err) return reject(err);
+        resolve();
+      });
+    });
+  }).nodeify(done);
+});
+
+gulp.task('build', ['clean'], function (done) {
+  syncPluginTo(buildTarget, done);
+});
+
+gulp.task('package', ['build'], function (done) {
+  return gulp.src(path.join(buildDir, '**', '*'))
+    .pipe(zip(pkg.name + '.zip'))
+    .pipe(gulp.dest(targetDir));
 });
